@@ -11,8 +11,8 @@
 #define DHTTYPE DHT22
 #define DHTPIN  5
  
-const char* ssid     = "Sunil iPhone7"; //"Jensun";
-const char* password = "jensun2010"; //"JenSun2010";
+const char* ssid     = "***********"; 
+const char* password = "***********"; 
 
 LinkedList<DataP*> myList = LinkedList<DataP*>();
 SimpleTimer tRH;
