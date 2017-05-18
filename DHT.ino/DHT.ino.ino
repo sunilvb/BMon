@@ -5,16 +5,14 @@
 #include <ESP8266mDNS.h>
 #include <DHT.h>
 #include <WiFiUdp.h>
-#include <LinkedList.h>
-#include <DataP.h>
+#include "FS.h"
 
 #define DHTTYPE DHT22
 #define DHTPIN  5
  
-const char* ssid     = "***********"; 
-const char* password = "***********"; 
+const char* ssid     = "Jensun"; 
+const char* password = "JenSun2010"; 
 
-LinkedList<DataP*> myList = LinkedList<DataP*>();
 SimpleTimer tRH, tWiFi;
  
 ESP8266WebServer webServer(80);
@@ -27,10 +25,12 @@ WiFiUDP udp;
 DHT dht(DHTPIN, DHTTYPE, 11);           // 11 works fine for ESP8266
 
 int readCount=0;
+int commitCount=4;
+int dayCount=1;
 int timer_h; 
 float humidity, temp_f;                 // Values read from sensor
 String webString="";                    // String to display
-
+String dbString="";
 unsigned long previousMillis = 0;        // will store last temp was read
 const long interval = 2000;              // interval at which to read sensor
 unsigned long secsSince1900 =0;
@@ -41,8 +41,6 @@ void handle_root() {
   String s = "<h1>Welcome to BeeMonitor</h1>The Current Temp is : " + String((int)temp_f) + "And Humidity is : " + String((int)humidity) ;
   s +="<br>The UTC Time is : " + getTimeNow() ;
   s +="<br>Click <a href='resetTime'><button>Reset Time</button></a>";
-  
- 
   webServer.send(200, "text/html", s);
   delay(100);
 }
@@ -54,37 +52,19 @@ void handle_time() {
 
 void handle_history() {
   tRH.disable(timer_h);
-  String s="<br>";
-
-  DataP *dd;
-  for(int i = 0; i < myList.size(); i++){
-
-    // Get animal from list
-    dd = myList.get(i);
-    s += "Id :" + dd->id;
-    s += " Time :" + dd->time;
-    s += " Humidity :" + dd->humidity;
-    s += " Temp :" + dd->temp + "<br>";
-    
-  }
-  
-  webServer.send(200, "text/html", s);
+  webServer.send(200, "text/html", "history");
   delay(100);
   tRH.enable(timer_h);
 }
  
 void setup()
-{
-  
+{  
   Serial.begin(115200);  
   timer_h = tRH.setInterval(15000, gettemperature);
   tWiFi.setInterval(300000, checkWiFiAndConnect);
   dht.begin();           
- 
-  
-    
   udp.begin(localPort);
-   
+     
   webServer.on("/", handle_root);
   webServer.on("/time", handle_time);
   webServer.on("/history", handle_history);
@@ -141,22 +121,24 @@ void checkWiFiAndConnect()
     break;
    }
   }
-
 } 
 
 void gettemperature() {
-  
     humidity = dht.readHumidity();          
     temp_f = dht.readTemperature(true);
-  if(readCount > 671) // Take 7 days worth of RH readings 24 * 4 * 7 = 672
-    readCount = 0;
-    
     readCount++;
-    DataP *dp = new DataP("App_ID-" + String(readCount), String((int)temp_f), String((int)humidity),getTimeNow());
-    myList.add(dp);
-    
-    if (isnan(humidity) || isnan(temp_f)) 
-      return;
+    dbString += getTimeNow() +","+String((int)temp_f)+","+String((int)temp_f)+"#";
+    if(readCount == commitCount)
+    {
+      if( writeToFile( dbString, "f"+dayCount) )
+      {
+        dbString = "";
+        readCount=0;
+        dayCount++;
+        if(dayCount==15)
+          dayCount=1;
+      }
+    }
     
 }
 
@@ -260,5 +242,17 @@ String getTimeNow(){
 
 }
 
-
-
+bool writeToFile(String s, String fName)
+{
+  bool result = SPIFFS.begin();
+  Serial.println("SPIFFS opened: " + result);
+  File f = SPIFFS.open(fName, "w");
+  if (!f)
+  { 
+    Serial.println("file creation failed");
+    return false;
+  }  
+  f.println(s);
+  f.close();
+  return true;
+}
