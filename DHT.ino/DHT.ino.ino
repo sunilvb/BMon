@@ -15,7 +15,7 @@ const char* ssid     = "***********";
 const char* password = "***********"; 
 
 LinkedList<DataP*> myList = LinkedList<DataP*>();
-SimpleTimer tRH;
+SimpleTimer tRH, tWiFi;
  
 ESP8266WebServer webServer(80);
 unsigned int localPort = 2390;
@@ -39,6 +39,10 @@ bool isWiFiConnected = false;
  
 void handle_root() {
   String s = "<h1>Welcome to BeeMonitor</h1>The Current Temp is : " + String((int)temp_f) + "And Humidity is : " + String((int)humidity) ;
+  s +="<br>The UTC Time is : " + getTimeNow() ;
+  s +="<br>Click <a href='resetTime'><button>Reset Time</button></a>";
+  
+ 
   webServer.send(200, "text/html", s);
   delay(100);
 }
@@ -74,23 +78,11 @@ void setup()
   
   Serial.begin(115200);  
   timer_h = tRH.setInterval(15000, gettemperature);
+  tWiFi.setInterval(300000, checkWiFiAndConnect);
   dht.begin();           
  
-  WiFi.begin(ssid, password);
-  Serial.print("\n\r \n\rWorking to connect");
- 
-  while (WiFi.status() != WL_CONNECTED)
-    delay(500);
   
-  isWiFiConnected  =true;
-  
-  Serial.println("");
-  Serial.println("DHT Weather Reading webServer");
-  Serial.print("Connected to ");
-  Serial.println(ssid);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-  
+    
   udp.begin(localPort);
    
   webServer.on("/", handle_root);
@@ -120,10 +112,38 @@ void loop()
 {
   webServer.handleClient();
   tRH.run();
+  tWiFi.run();
 } 
 
 //==========================================================================================
+void checkWiFiAndConnect()
+{
+ if(isWiFiConnected)
+  return;
  
+ isWiFiConnected = false;
+ WiFi.begin(ssid, password);
+  Serial.print("\n\r \n\rWorking to connect");
+    
+  for(int a = 0 ; a<15 ; a++)
+  {
+   if(WiFi.status() != WL_CONNECTED)
+     delay(1000);
+   else
+   { 
+    isWiFiConnected  = true;
+    Serial.println("");
+    Serial.println("DHT Weather Reading webServer");
+    Serial.print("Connected to ");
+    Serial.println(ssid);
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+    break;
+   }
+  }
+
+} 
+
 void gettemperature() {
   
     humidity = dht.readHumidity();          
