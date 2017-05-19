@@ -10,8 +10,8 @@
 #define DHTTYPE DHT22
 #define DHTPIN  5
  
-const char* ssid     = "Jensun"; 
-const char* password = "JenSun2010"; 
+const char* ssid     = "Sunil iP7"; 
+const char* password = "jensun2010"; 
 
 SimpleTimer tRH, tWiFi;
  
@@ -31,14 +31,13 @@ int timer_h;
 float humidity, temp_f;                 // Values read from sensor
 String webString="";                    // String to display
 String dbString="";
-unsigned long previousMillis = 0;        // will store last temp was read
-const long interval = 2000;              // interval at which to read sensor
+
 unsigned long secsSince1900 =0;
 
 bool isWiFiConnected = false;
  
 void handle_root() {
-  String s = "<h1>Welcome to BeeMonitor</h1>The Current Temp is : " + String((int)temp_f) + "And Humidity is : " + String((int)humidity) ;
+  String s = "<h1>Welcome to BeeMonitor</h1>The Current Temp is : " + String((int)temp_f) + "*F And Humidity is : " + String((int)humidity) + "%" ;
   s +="<br>The UTC Time is : " + getTimeNow() ;
   s +="<br>Click <a href='resetTime'><button>Reset Time</button></a>";
   webServer.send(200, "text/html", s);
@@ -78,17 +77,21 @@ void setup()
   });
   
   webServer.begin();
-  Serial.println("HTTP server started");
+  Serial.println("\nHTTP server started");
   
   if (!MDNS.begin("esp8266")) {
+  for(int i=0;i<5;i++)
+  {   
     Serial.println("Error setting up MDNS responder!");
-    while(1) { 
       delay(1000);
     }
   }
+  else
+  {
   Serial.println("mDNS responder started");
   MDNS.addService("http", "tcp", 80);
-  Serial.println(getUTCTime());
+  }
+  
 }
  
 void loop()
@@ -106,7 +109,7 @@ void checkWiFiAndConnect()
  
  isWiFiConnected = false;
  WiFi.begin(ssid, password);
-  Serial.print("\n\r \n\rWorking to connect");
+ Serial.println("\n\r \n\rWorking to connect WiFi");
     
   for(int a = 0 ; a<15 ; a++)
   {
@@ -121,12 +124,21 @@ void checkWiFiAndConnect()
     Serial.println(ssid);
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
+  Serial.println(getUTCTime());
     break;
    }
   }
+  Serial.println("\n\r \n\rDone...isWiFiConnected " + String(isWiFiConnected));
+  
 } 
 
 void gettemperature() {
+   if (secsSince1900 ==0)
+  { 
+    Serial.println("Error Time Not Set. Please connect to WiFi");
+  Serial.println("\n\r \n\...isWiFiConnected " + String(isWiFiConnected));
+    return ;
+  }
     humidity = dht.readHumidity();          
     temp_f = dht.readTemperature(true);
     readCount++;
@@ -227,7 +239,12 @@ String getUTCTime(){
 }
 
 String getTimeNow(){
-    String s = "";
+    if (secsSince1900 ==0)
+  { 
+    Serial.println("Error Time Not Set. Please connect to WiFi");
+    return "";
+  }
+  String s = "";
     const unsigned long seventyYears = 2208988800UL;
     unsigned long epoch = secsSince1900 - seventyYears + (millis()/1000);
     // print Unix time:
